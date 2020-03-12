@@ -1,0 +1,20 @@
+{
+  "name": "pwm-sender",
+  "version": "1.0.0",
+  "description": "tools kirim api pwm ",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "pwm"
+  ],
+  "author": "kurob1993",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "node-localstorage": "^2.1.5",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.2.1"
+  }
+}
