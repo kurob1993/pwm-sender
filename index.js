@@ -1,3 +1,5 @@
+const url = 'https://pwm.kurob.web.id';
+// const url = 'http://127.0.0.1:8000';
 const qrcode = require('qrcode-terminal');
 const axios = require('axios');
 const { Client } = require('whatsapp-web.js');
@@ -21,13 +23,13 @@ if (fs.existsSync(LOGIN_FILE_PATH)) {
 }
 
 let get_token = async () => {
-    await axios.post('http://127.0.0.1:8000/api/v1/login', login)
+    await axios.post(url+'/api/v1/login', login)
         .then(function (response) {
             // handle success
             localStorage.setItem('token', response.data.success.api_token);
         }).catch(function (error) {
             // handle error
-            console.log(error.response.statusText);
+            // console.log(error.response.statusText);
             localStorage.removeItem('token');
         }).then(function () {
             // always executed
@@ -39,7 +41,7 @@ let get_token = async () => {
 let sending = async (token) => {
     await axios({
         method: 'get',
-        url: 'http://127.0.0.1:8000/api/v1/message/sending',
+        url: url+'/api/v1/message/sending',
         headers: {
             'Accept': 'application/json',
             'Authorization': 'Bearer ' + token
@@ -60,6 +62,31 @@ let sending = async (token) => {
     return localStorage.getItem('message')
 }
 
+let sended = async (token,id) => {
+    await axios({
+        method: 'post',
+        url: url+'/api/v1/message/sended',
+        data: {
+            id: id
+        },
+        headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ' + token
+        }
+    })
+        .then(function (response) {
+            // handle success
+            var myJSON = JSON.stringify(response.data.success);
+            console.log(myJSON);
+        }).catch(function (error) {
+            // handle error
+        }).then(function () {
+            // always executed
+        });
+
+    return localStorage.getItem('message')
+}
+
 const client = new Client({ puppeteer: { headless: true }, session: sessionCfg });
 client.initialize();
 
@@ -73,7 +100,8 @@ client.on('authenticated', (session) => {
     sessionCfg = session;
     fs.writeFile(SESSION_FILE_PATH, JSON.stringify(session), function (err) {
         if (err) {
-            console.error(err);
+            // console.error(err);
+            console.error('==== Erorr ====');
         }
     });
 });
@@ -105,11 +133,15 @@ function loop() {
         let message = await sending(token);
 
         if (message !== 'null') {
-            let obj = JSON.parse(message);
-            let number = obj.number;
-            let text = obj.text;
-            await client.sendMessage(number + '@c.us', text);
-            console.log(number + ' : ' + text + ' a millisecond: ' + rand);
+            try {
+                let obj = JSON.parse(message);
+                let number = obj.number;
+                let text = obj.text;
+                await client.sendMessage(number + '@c.us', text);
+                console.log(number + ' : ' + text + ' a millisecond: ' + rand);
+            } catch (err) {
+                console.log(err);
+            }
         } else {
             console.log('not message' + ' a millisecond: ' + rand);
         }
@@ -135,7 +167,7 @@ client.on('message_create', (msg) => {
     }
 });
 
-client.on('message_ack', (msg, ack) => {
+client.on('message_ack', async (msg, ack) => {
     /*
         == ACK VALUES ==
         ACK_ERROR: -1
@@ -146,8 +178,14 @@ client.on('message_ack', (msg, ack) => {
         ACK_PLAYED: 4
     */
 
-    if(ack == 2) {
-        console.log(msg);
+    if(ack == 1) {
+
+        let message = localStorage.getItem('message')
+        let obj = JSON.parse(message);
+        let id = obj.id;
+
+        let token = await get_token();
+        await sended(token, id);
     }
 });
 
