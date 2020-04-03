@@ -87,7 +87,7 @@ let sended = async (token,id) => {
     return localStorage.getItem('message')
 }
 
-const client = new Client({ puppeteer: { headless: true }, session: sessionCfg });
+const client = new Client({ puppeteer: { headless: true, args: ['--no-sandbox'] }, session: sessionCfg });
 client.initialize();
 
 client.on('qr', (qr) => {
