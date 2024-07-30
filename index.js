@@ -64,7 +64,7 @@ let sending = async (token) => {
             // localStorage.setItem('message', myJSON);
         }).catch(function (error) {
             // handle error
-            logWithLineNumber(error.response.statusText);
+            logWithLineNumber(JSON.stringify(error));
             // localStorage.removeItem('message');
         }).then(function () {
             // always executed
