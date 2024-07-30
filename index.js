@@ -24,6 +24,12 @@ logWithLineNumber = (message) => {
   console.log(`Line ${lineNumber}: ${message}`);
 }
 
+getRandomMilliseconds = () => {
+    const minMilliseconds = 30000; // 30 detik
+    const maxMilliseconds = 60000; // 1 menit
+    return Math.floor(Math.random() * (maxMilliseconds - minMilliseconds + 1)) + minMilliseconds;
+}
+
 let get_token = async () => {
     let res = null;
     await axios.post(url+'/api/v1/login', login)
@@ -124,7 +130,7 @@ client.on('disconnected', (reason) => {
 });
 
 function loop() {
-    var rand = Math.round(Math.random() * 20000);
+    var rand = getRandomMilliseconds();
     logWithLineNumber('next message will be sent in ' + (rand / 1000) + ' seconds');
 
     setTimeout(async function () {
