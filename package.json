@@ -13,9 +13,9 @@
   "author": "kurob1993",
   "license": "ISC",
   "dependencies": {
-    "axios": "^0.19.2",
-    "node-localstorage": "^2.1.5",
+    "axios": "^1.7.2",
+    "node-localstorage": "^3.0.5",
     "qrcode-terminal": "^0.12.0",
-    "whatsapp-web.js": "^1.2.1"
+    "whatsapp-web.js": "^1.23.0"
   }
 }

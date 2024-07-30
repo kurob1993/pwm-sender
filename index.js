@@ -1,13 +1,7 @@
-const url = 'https://pwm.kurob.web.id';
-// const url = 'http://127.0.0.1:8000';
+const url = process.env.API_URL || 'http://localhost:8002';
 const qrcode = require('qrcode-terminal');
 const axios = require('axios');
-const { Client } = require('whatsapp-web.js');
-
-if (typeof localStorage === "undefined" || localStorage === null) {
-    var LocalStorage = require('node-localstorage').LocalStorage;
-    localStorage = new LocalStorage('./scratch');
-}
+const { Client, LocalAuth } = require('whatsapp-web.js');
 
 const fs = require('fs');
 const SESSION_FILE_PATH = './session.json';
@@ -22,23 +16,33 @@ if (fs.existsSync(LOGIN_FILE_PATH)) {
     login = require(LOGIN_FILE_PATH);
 }
 
+logWithLineNumber = (message) => {
+  const stack = new Error().stack;
+  const stackLines = stack.split('\n');
+  const callerLine = stackLines[2]; // The third line should be the caller
+  const lineNumber = callerLine.match(/:(\d+):\d+/)[1]; // Extract the line number
+  console.log(`Line ${lineNumber}: ${message}`);
+}
+
 let get_token = async () => {
+    let res = null;
     await axios.post(url+'/api/v1/login', login)
         .then(function (response) {
             // handle success
-            localStorage.setItem('token', response.data.success.api_token);
+            logWithLineNumber('get token success');
+            res = response.data.data.api_token
         }).catch(function (error) {
             // handle error
-            // console.log(error.response.statusText);
-            localStorage.removeItem('token');
-        }).then(function () {
+            logWithLineNumber(error);
+        }).then(function (res) {
             // always executed
         });
 
-    return localStorage.getItem('token')
+    return res
 }
 
 let sending = async (token) => {
+    let res = null;
     await axios({
         method: 'get',
         url: url+'/api/v1/message/sending',
@@ -50,19 +54,21 @@ let sending = async (token) => {
         .then(function (response) {
             // handle success
             var myJSON = JSON.stringify(response.data.success);
-            localStorage.setItem('message', myJSON);
+            res = myJSON
+            // localStorage.setItem('message', myJSON);
         }).catch(function (error) {
             // handle error
-            console.log(error.response.statusText);
-            localStorage.removeItem('message');
+            logWithLineNumber(error.response.statusText);
+            // localStorage.removeItem('message');
         }).then(function () {
             // always executed
         });
 
-    return localStorage.getItem('message')
+    return res
 }
 
 let sended = async (token,id) => {
+    res = null;
     await axios({
         method: 'post',
         url: url+'/api/v1/message/sended',
@@ -77,17 +83,26 @@ let sended = async (token,id) => {
         .then(function (response) {
             // handle success
             var myJSON = JSON.stringify(response.data.success);
-            console.log(myJSON);
+            var res = myJSON
+            logWithLineNumber(myJSON);
         }).catch(function (error) {
             // handle error
         }).then(function () {
             // always executed
         });
 
-    return localStorage.getItem('message')
+    return res
 }
 
-const client = new Client({ puppeteer: { headless: true, args: ['--no-sandbox'] }, session: sessionCfg });
+const client = new Client({ 
+    puppeteer: { 
+        headless: true, 
+        args: ['--no-sandbox'],
+        timeout: 60000
+    }, 
+    authStrategy: new LocalAuth()
+});
+
 client.initialize();
 
 client.on('qr', (qr) => {
@@ -95,39 +110,23 @@ client.on('qr', (qr) => {
     qrcode.generate(qr, { small: true });
 });
 
-client.on('authenticated', (session) => {
-    // console.log('AUTHENTICATED', session);
-    sessionCfg = session;
-    fs.writeFile(SESSION_FILE_PATH, JSON.stringify(session), function (err) {
-        if (err) {
-            // console.error(err);
-            console.error('==== Erorr ====');
-        }
-    });
+client.on('authenticated', () => {
+    logWithLineNumber('AUTHENTICATED');
 });
 
 client.on('auth_failure', msg => {
     // Fired if session restore was unsuccessfull
     console.error('AUTHENTICATION FAILURE', msg);
-    try {
-        fs.unlinkSync(SESSION_FILE_PATH)
-    } catch (err) {
-        console.error(err)
-    }
 });
 
 client.on('disconnected', (reason) => {
-    console.log('Client was logged out', reason);
-    localStorage.setItem('disconnected', 1);
-    try {
-        fs.unlinkSync(SESSION_FILE_PATH)
-    } catch (err) {
-        console.error(err)
-    }
+    logWithLineNumber('Client was logged out', reason);
 });
 
 function loop() {
     var rand = Math.round(Math.random() * 20000);
+    logWithLineNumber('next message will be sent in ' + (rand / 1000) + ' seconds');
+
     setTimeout(async function () {
         let token = await get_token();
         let message = await sending(token);
@@ -137,32 +136,29 @@ function loop() {
                 let obj = JSON.parse(message);
                 let number = obj.number;
                 let text = obj.text;
+
+                // milllisecond to second
                 await client.sendMessage(number + '@c.us', text);
-                console.log(number + ' : ' + text + ' a millisecond: ' + rand);
+                logWithLineNumber(number + ' : ' + text);
             } catch (err) {
-                console.log(err);
+                logWithLineNumber(err);
             }
-        } else {
-            console.log('not message' + ' a millisecond: ' + rand);
         }
 
-        if (localStorage.getItem('disconnected') == 0) {
-            loop();
-        }
-        
+        loop();
+
     }, rand);
 }
 
 client.on('ready', async () => {
-    console.log('Client is ready!');
-    localStorage.setItem('disconnected', 0);
+    logWithLineNumber('Client is ready!');
     loop();
 });
 
 client.on('message_create', (msg) => {
     // Fired on all message creations, including your own
     if (msg.fromMe) {
-        // console.log(msg);
+        // logWithLineNumber(msg);
         
     }
 });
@@ -177,20 +173,28 @@ client.on('message_ack', async (msg, ack) => {
         ACK_READ: 3
         ACK_PLAYED: 4
     */
-
-    if(ack == 1) {
-
-        let message = localStorage.getItem('message')
-        let obj = JSON.parse(message);
-        let id = obj.id;
-
-        let token = await get_token();
-        await sended(token, id);
+    if(Number(ack) === -1) {
+        logWithLineNumber('ACK_ERROR');
+    }
+    if(Number(ack) === 0) {
+        logWithLineNumber('ACK_PENDING');
+    }
+    if(Number(ack) === 1) {
+        logWithLineNumber('ACK_SERVER');
+    }
+    if(Number(ack) === 2) {
+        logWithLineNumber('ACK_DEVICE');
+    }
+    if(Number(ack) === 3) {
+        logWithLineNumber('ACK_READ');
+    }
+    if(Number(ack) === 4) {
+        logWithLineNumber('ACK_PLAYED');
     }
 });
 
 client.on('message', msg => {
-    if (msg.body == '!ping') {
+    if (msg.body === '!ping') {
         msg.reply('pong');
     }
 });

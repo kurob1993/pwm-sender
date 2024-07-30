@@ -14,7 +14,7 @@ if (typeof localStorage === "undefined" || localStorage === null) {
 }
 
 let get_token = async () => {
-    await axios.post('http://127.0.0.1:8000/api/v1/login', login)
+    await axios.post('http://localhost:8002/api/v1/login', login)
     .then(function (response) {
         // handle success
         localStorage.setItem('token', response.data.success.api_token);
