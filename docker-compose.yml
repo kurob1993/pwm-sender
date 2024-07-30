@@ -4,8 +4,16 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - .:/app
-      - /app/node_modules
+      - 'auth:/app/.wwebjs_auth'
+      - 'cache:/app/.wwebjs_cache'
+      - 'node_modules:/app/node_modules'
     environment:
       - NODE_ENV=development
       - API_URL=http://host.docker.internal:8002 # Tambahkan variabel lingkungan di sini
+volumes:
+  auth:
+    driver: local
+  cache:
+    driver: local
+  node_modules:
+    driver: local
